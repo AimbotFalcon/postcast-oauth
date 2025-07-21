@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Cast - OAuth Redirect</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+        }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        .success {
+            background: rgba(76, 175, 80, 0.3);
+            border: 2px solid #4CAF50;
+        }
+        .error {
+            background: rgba(244, 67, 54, 0.3);
+            border: 2px solid #F44336;
+        }
+        .info {
+            background: rgba(33, 150, 243, 0.3);
+            border: 2px solid #2196F3;
+        }
+        .button {
+            display: inline-block;
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            margin: 10px 5px;
+            transition: background 0.3s;
+        }
+        .button:hover {
+            background: #45a049;
+        }
+        .code {
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            word-break: break-all;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+        .logo {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">📱</div>
+        <h1>Post Cast</h1>
+        
+        <div id="loading" class="status info">
+            <div class="spinner"></div>
+            <strong>🔄 Procesando autorización...</strong><br>
+            Redirigiendo a la app...
+        </div>
+        
+        <div id="success" class="status success" style="display: none;">
+            <strong>✅ ¡Autorización exitosa!</strong><br>
+            Redirigiendo a Post Cast...
+        </div>
+        
+        <div id="error" class="status error" style="display: none;">
+            <strong>❌ Error en autorización</strong><br>
+            <span id="errorMessage"></span>
+        </div>
+        
+        <div id="manual" style="display: none; margin-top: 20px;">
+            <p><strong>📋 Si no se abre automáticamente:</strong></p>
+            <a id="manualLink" href="#" class="button">🔗 Abrir Post Cast Manualmente</a>
+        </div>
+        
+        <div id="debug" style="margin-top: 30px; font-size: 0.8em; opacity: 0.7; text-align: left;">
+            <strong>🔍 Debug Info:</strong><br>
+            <div id="debugInfo"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración
+        const APP_SCHEME = 'postcast';
+        const DEBUG_MODE = true;
+        
+        // Elementos del DOM
+        const loadingEl = document.getElementById('loading');
+        const successEl = document.getElementById('success');
+        const errorEl = document.getElementById('error');
+        const manualEl = document.getElementById('manual');
+        const manualLinkEl = document.getElementById('manualLink');
+        const debugEl = document.getElementById('debugInfo');
+        
+        // Función para mostrar debug info
+        function log(message) {
+            if (DEBUG_MODE) {
+                console.log(message);
+                debugEl.innerHTML += message + '<br>';
+            }
+        }
+        
+        // Función para redirigir a la app
+        function redirectToApp(url) {
+            log('🔄 Redirigiendo a app: ' + url);
+            
+            // Intentar abrir la app
+            window.location.href = url;
+            
+            // Mostrar botón manual después de 2 segundos
+            setTimeout(() => {
+                manualEl.style.display = 'block';
+                manualLinkEl.href = url;
+            }, 2000);
+        }
+        
+        // Función para mostrar error
+        function showError(message) {
+            loadingEl.style.display = 'none';
+            errorEl.style.display = 'block';
+            document.getElementById('errorMessage').textContent = message;
+            log('❌ Error: ' + message);
+        }
+        
+        // Función para mostrar éxito
+        function showSuccess() {
+            loadingEl.style.display = 'none';
+            successEl.style.display = 'block';
+            log('✅ Autorización exitosa');
+        }
+        
+        // Procesar parámetros de la URL
+        function processOAuthCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            log('🔍 Procesando OAuth callback...');
+            log('📍 URL actual: ' + window.location.href);
+            
+            // Obtener parámetros
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            const error = urlParams.get('error');
+            const errorReason = urlParams.get('error_reason');
+            const errorDescription = urlParams.get('error_description');
+            
+            log('📋 Parámetros:');
+            log('   Code: ' + (code ? code.substring(0, 20) + '...' : 'None'));
+            log('   State: ' + (state || 'None'));
+            log('   Error: ' + (error || 'None'));
+            
+            if (error) {
+                // Error en OAuth
+                const errorUrl = `${APP_SCHEME}://instagram-auth?error=${encodeURIComponent(error)}&error_reason=${encodeURIComponent(errorReason || '')}&error_description=${encodeURIComponent(errorDescription || '')}`;
+                showError(errorDescription || errorReason || error);
+                redirectToApp(errorUrl);
+                return;
+            }
+            
+            if (code) {
+                // Éxito - redirigir a la app con el código
+                const successUrl = `${APP_SCHEME}://instagram-auth?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || '')}`;
+                showSuccess();
+                redirectToApp(successUrl);
+                return;
+            }
+            
+            // Sin código ni error
+            const missingCodeUrl = `${APP_SCHEME}://instagram-auth?error=missing_code&error_description=${encodeURIComponent('No authorization code received')}`;
+            showError('No se recibió código de autorización');
+            redirectToApp(missingCodeUrl);
+        }
+        
+        // Iniciar procesamiento cuando se carga la página
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Página cargada, iniciando procesamiento OAuth...');
+            processOAuthCallback();
+        });
+        
+        // Detectar si la app se abrió correctamente
+        let appOpened = false;
+        window.addEventListener('blur', function() {
+            appOpened = true;
+            log('✅ App detectada (ventana perdió foco)');
+        });
+        
+        // Si no se abrió la app después de 3 segundos, mostrar manual
+        setTimeout(() => {
+            if (!appOpened) {
+                log('⚠️ App no detectada, mostrando opción manual');
+                manualEl.style.display = 'block';
+            }
+        }, 3000);
+    </script>
+</body>
+</html> 

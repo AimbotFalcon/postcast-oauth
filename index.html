@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Post Cast - OAuth Redirect</title>
+    <title>Post Cast - Connecting...</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -18,19 +18,43 @@
         }
         .container {
             background: rgba(255,255,255,0.1);
-            padding: 40px;
+            padding: 60px 40px;
             border-radius: 20px;
             backdrop-filter: blur(10px);
             box-shadow: 0 8px 32px rgba(0,0,0,0.1);
             text-align: center;
-            max-width: 500px;
+            max-width: 400px;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .logo {
+            font-size: 4em;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        h1 {
+            font-size: 2.5em;
+            margin: 20px 0;
+            font-weight: 700;
+        }
+        .status {
+            font-size: 1.3em;
+            margin: 30px 0;
+            font-weight: 500;
         }
         .spinner {
             border: 4px solid rgba(255,255,255,0.3);
             border-top: 4px solid white;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
             margin: 20px auto;
         }
@@ -38,195 +62,119 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .status {
+        .success-icon {
+            font-size: 4em;
+            color: #4CAF50;
             margin: 20px 0;
-            padding: 15px;
-            border-radius: 10px;
-            font-weight: bold;
+            animation: bounce 1s ease-in-out;
         }
-        .success {
-            background: rgba(76, 175, 80, 0.3);
-            border: 2px solid #4CAF50;
+        @keyframes bounce {
+            0%, 20%, 53%, 80%, 100% { transform: translateY(0); }
+            40%, 43% { transform: translateY(-20px); }
+            70% { transform: translateY(-10px); }
+            90% { transform: translateY(-5px); }
+        }
+        .connecting {
+            display: block;
+        }
+        .connected {
+            display: none;
         }
         .error {
-            background: rgba(244, 67, 54, 0.3);
-            border: 2px solid #F44336;
+            display: none;
+            color: #ff6b6b;
         }
-        .info {
-            background: rgba(33, 150, 243, 0.3);
-            border: 2px solid #2196F3;
-        }
-        .button {
-            display: inline-block;
-            background: #4CAF50;
-            color: white;
-            padding: 12px 24px;
-            text-decoration: none;
-            border-radius: 8px;
-            margin: 10px 5px;
-            transition: background 0.3s;
-        }
-        .button:hover {
-            background: #45a049;
-        }
-        .code {
-            background: rgba(0,0,0,0.3);
-            padding: 10px;
-            border-radius: 5px;
-            font-family: monospace;
-            word-break: break-all;
-            margin: 10px 0;
-            font-size: 0.9em;
-        }
-        .logo {
-            font-size: 3em;
-            margin-bottom: 20px;
+        .subtitle {
+            font-size: 1em;
+            opacity: 0.8;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="logo">📱</div>
-        <h1>Post Cast</h1>
-        
-        <div id="loading" class="status info">
+        <div id="connecting" class="connecting">
+            <div class="logo">📱</div>
+            <h1>Post Cast</h1>
             <div class="spinner"></div>
-            <strong>🔄 Procesando autorización...</strong><br>
-            Redirigiendo a la app...
+            <div class="status">Connecting Instagram...</div>
+            <div class="subtitle">We'll redirect you in a moment</div>
         </div>
         
-        <div id="success" class="status success" style="display: none;">
-            <strong>✅ ¡Autorización exitosa!</strong><br>
-            Redirigiendo a Post Cast...
+        <div id="connected" class="connected">
+            <div class="success-icon">✅</div>
+            <h1>Post Cast Connected!</h1>
+            <div class="status">Instagram linked successfully</div>
+            <div class="subtitle">Returning to the app...</div>
         </div>
         
-        <div id="error" class="status error" style="display: none;">
-            <strong>❌ Error en autorización</strong><br>
-            <span id="errorMessage"></span>
-        </div>
-        
-        <div id="manual" style="display: none; margin-top: 20px;">
-            <p><strong>📋 Si no se abre automáticamente:</strong></p>
-            <a id="manualLink" href="#" class="button">🔗 Abrir Post Cast Manualmente</a>
-        </div>
-        
-        <div id="debug" style="margin-top: 30px; font-size: 0.8em; opacity: 0.7; text-align: left;">
-            <strong>🔍 Debug Info:</strong><br>
-            <div id="debugInfo"></div>
+        <div id="error" class="error">
+            <div class="logo">❌</div>
+            <h1>Connection Error</h1>
+            <div class="status">Couldn't connect Instagram</div>
+            <div class="subtitle">Please try again from the app</div>
         </div>
     </div>
 
     <script>
-        // Configuración
         const APP_SCHEME = 'postcast';
-        const DEBUG_MODE = true;
-        
-        // Elementos del DOM
-        const loadingEl = document.getElementById('loading');
-        const successEl = document.getElementById('success');
+        const connectingEl = document.getElementById('connecting');
+        const connectedEl = document.getElementById('connected');
         const errorEl = document.getElementById('error');
-        const manualEl = document.getElementById('manual');
-        const manualLinkEl = document.getElementById('manualLink');
-        const debugEl = document.getElementById('debugInfo');
         
-        // Función para mostrar debug info
-        function log(message) {
-            if (DEBUG_MODE) {
-                console.log(message);
-                debugEl.innerHTML += message + '<br>';
-            }
+        function showConnected() {
+            connectingEl.style.display = 'none';
+            connectedEl.style.display = 'block';
+            errorEl.style.display = 'none';
         }
         
-        // Función para redirigir a la app
+        function showError() {
+            connectingEl.style.display = 'none';
+            connectedEl.style.display = 'none';
+            errorEl.style.display = 'block';
+        }
+        
         function redirectToApp(url) {
-            log('🔄 Redirigiendo a app: ' + url);
-            
-            // Intentar abrir la app
-            window.location.href = url;
-            
-            // Mostrar botón manual después de 2 segundos
+            showConnected();
             setTimeout(() => {
-                manualEl.style.display = 'block';
-                manualLinkEl.href = url;
+                window.location.href = url;
             }, 2000);
         }
         
-        // Función para mostrar error
-        function showError(message) {
-            loadingEl.style.display = 'none';
-            errorEl.style.display = 'block';
-            document.getElementById('errorMessage').textContent = message;
-            log('❌ Error: ' + message);
-        }
-        
-        // Función para mostrar éxito
-        function showSuccess() {
-            loadingEl.style.display = 'none';
-            successEl.style.display = 'block';
-            log('✅ Autorización exitosa');
-        }
-        
-        // Procesar parámetros de la URL
         function processOAuthCallback() {
             const urlParams = new URLSearchParams(window.location.search);
-            
-            log('🔍 Procesando OAuth callback...');
-            log('📍 URL actual: ' + window.location.href);
-            
-            // Obtener parámetros
             const code = urlParams.get('code');
-            const state = urlParams.get('state');
             const error = urlParams.get('error');
-            const errorReason = urlParams.get('error_reason');
             const errorDescription = urlParams.get('error_description');
             
-            log('📋 Parámetros:');
-            log('   Code: ' + (code ? code.substring(0, 20) + '...' : 'None'));
-            log('   State: ' + (state || 'None'));
-            log('   Error: ' + (error || 'None'));
-            
             if (error) {
-                // Error en OAuth
-                const errorUrl = `${APP_SCHEME}://instagram-auth?error=${encodeURIComponent(error)}&error_reason=${encodeURIComponent(errorReason || '')}&error_description=${encodeURIComponent(errorDescription || '')}`;
-                showError(errorDescription || errorReason || error);
-                redirectToApp(errorUrl);
+                setTimeout(() => {
+                    showError();
+                    const errorUrl = `${APP_SCHEME}://instagram-auth?error=${encodeURIComponent(error)}&error_description=${encodeURIComponent(errorDescription || '')}`;
+                    setTimeout(() => window.location.href = errorUrl, 3000);
+                }, 1000);
                 return;
             }
             
             if (code) {
-                // Éxito - redirigir a la app con el código
-                const successUrl = `${APP_SCHEME}://instagram-auth?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || '')}`;
-                showSuccess();
-                redirectToApp(successUrl);
+                const state = urlParams.get('state') || '';
+                const successUrl = `${APP_SCHEME}://instagram-auth?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
+                setTimeout(() => {
+                    redirectToApp(successUrl);
+                }, 1500);
                 return;
             }
             
-            // Sin código ni error
-            const missingCodeUrl = `${APP_SCHEME}://instagram-auth?error=missing_code&error_description=${encodeURIComponent('No authorization code received')}`;
-            showError('No se recibió código de autorización');
-            redirectToApp(missingCodeUrl);
+            setTimeout(() => {
+                showError();
+                const missingCodeUrl = `${APP_SCHEME}://instagram-auth?error=missing_code&error_description=${encodeURIComponent('No authorization code received')}`;
+                setTimeout(() => window.location.href = missingCodeUrl, 3000);
+            }, 1000);
         }
         
-        // Iniciar procesamiento cuando se carga la página
         document.addEventListener('DOMContentLoaded', function() {
-            log('🚀 Página cargada, iniciando procesamiento OAuth...');
             processOAuthCallback();
         });
-        
-        // Detectar si la app se abrió correctamente
-        let appOpened = false;
-        window.addEventListener('blur', function() {
-            appOpened = true;
-            log('✅ App detectada (ventana perdió foco)');
-        });
-        
-        // Si no se abrió la app después de 3 segundos, mostrar manual
-        setTimeout(() => {
-            if (!appOpened) {
-                log('⚠️ App no detectada, mostrando opción manual');
-                manualEl.style.display = 'block';
-            }
-        }, 3000);
     </script>
 </body>
-</html> 
+</html>

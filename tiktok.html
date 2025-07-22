@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Cast - TikTok Authentication</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+        }
+        .logo {
+            font-size: 2em;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .status {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .error {
+            background: rgba(255, 59, 48, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .success {
+            background: rgba(52, 199, 89, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🎵 Post Cast</div>
+        <div id="status" class="status">Connecting to TikTok...</div>
+        <div id="loading" class="loading"></div>
+        <div id="message"></div>
+    </div>
+
+    <script>
+        const APP_SCHEME = 'postcast';
+        
+        function showConnected() {
+            document.getElementById('status').textContent = 'Connected!';
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('message').innerHTML = '<div class="success">✅ TikTok account connected successfully!</div>';
+        }
+        
+        function showError(message) {
+            document.getElementById('status').textContent = 'Connection Failed';
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('message').innerHTML = `<div class="error">❌ ${message}</div>`;
+        }
+        
+        function redirectToApp(url) {
+            console.log('Redirecting to app:', url);
+            setTimeout(() => {
+                window.location.href = url;
+            }, 2000);
+        }
+        
+        function processTikTokCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const error = urlParams.get('error');
+            const errorDescription = urlParams.get('error_description');
+            const state = urlParams.get('state') || '';
+            
+            console.log('TikTok OAuth callback received:', { code, error, state });
+            
+            if (error) {
+                // OAuth error
+                setTimeout(() => {
+                    showError(errorDescription || 'Authentication failed');
+                    const errorUrl = `${APP_SCHEME}://tiktok-auth?error=${encodeURIComponent(error)}&error_description=${encodeURIComponent(errorDescription || '')}`;
+                    setTimeout(() => window.location.href = errorUrl, 3000);
+                }, 1000);
+                return;
+            }
+            
+            if (code) {
+                // Success - show message and redirect to app
+                setTimeout(() => {
+                    showConnected();
+                    const successUrl = `${APP_SCHEME}://tiktok-auth?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
+                    setTimeout(() => {
+                        redirectToApp(successUrl);
+                    }, 2000);
+                }, 1000);
+                return;
+            }
+            
+            // No code or error
+            setTimeout(() => {
+                showError('No authorization code received');
+                const missingCodeUrl = `${APP_SCHEME}://tiktok-auth?error=missing_code&error_description=${encodeURIComponent('No authorization code received')}`;
+                setTimeout(() => window.location.href = missingCodeUrl, 3000);
+            }, 1000);
+        }
+        
+        // Process OAuth callback when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            processTikTokCallback();
+        });
+    </script>
+</body>
+</html> 
